@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LaTeX to PNG</title>
+    <script type="text/javascript" id="MathJax-script" async
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js">
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+            background-color: #121212;
+            color: #ffffff;
+        }
+        textarea {
+            width: 80%;
+            height: 100px;
+            font-size: 16px;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border: 1px solid #444;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        textarea::placeholder {
+            color: #aaaaaa;
+        }
+        .controls {
+            margin: 20px;
+        }
+        input[type="number"], select {
+            width: 100px;
+            padding: 5px;
+            font-size: 16px;
+            border: 1px solid #444;
+            border-radius: 5px;
+            background-color: #1e1e1e;
+            color: #ffffff;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            color: #ffffff;
+            background-color: #333;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #555;
+        }
+        canvas {
+            margin-top: 20px;
+            border: 1px solid #444;
+            background-color: transparent;
+        }
+        a {
+            margin-top: 10px;
+            display: inline-block;
+            color: #4caf50;
+            text-decoration: none;
+            font-size: 16px;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .error-box {
+            display: none;
+            background-color: #ffdddd;
+            color: #d8000c;
+            border: 1px solid #d8000c;
+            padding: 10px;
+            margin: 10px auto;
+            width: 80%;
+            border-radius: 5px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h1>LaTeX to PNG</h1>
+    <textarea id="latex-input" placeholder="Enter your LaTeX code here..."></textarea>
+    <div class="controls">
+        <label for="width">Width</label>
+        <input type="number" id="width" value="800" min="100">
+        <label for="text-colour">Text Colour</label>
+        <select id="text-colour">
+            <option value="white" selected>White</option>
+            <option value="black">Black</option>
+        </select>
+    </div>
+    <button onclick="generatePNG()">Generate PNG</button>
+    <div id="error-message" class="error-box"></div>
+    <br>
+    <canvas id="output-canvas"></canvas>
+    <br>
+    <a id="download-link" download="latex-output.png" style="display: none;">Download PNG</a>
+
+    <script>
+        function generatePNG() {
+            const input = document.getElementById("latex-input").value.trim();
+            const canvas = document.getElementById("output-canvas");
+            const ctx = canvas.getContext("2d");
+            const errorMessage = document.getElementById("error-message");
+    
+            const width = parseInt(document.getElementById("width").value, 10) || 800;
+            const textColour = document.getElementById("text-colour").value;
+    
+            errorMessage.style.display = "none";
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+            const braceCount = (input.match(/{/g) || []).length - (input.match(/}/g) || []).length;
+            if (braceCount !== 0) {
+                errorMessage.textContent = "Error: Unmatched braces in your LaTeX input";
+                errorMessage.style.display = "block";
+                return;
+            }
+    
+            MathJax.tex2svgPromise(input).then((svg) => {
+                const svgElement = svg.querySelector("svg");
+                const svgData = new XMLSerializer().serializeToString(svgElement);
+    
+                const updatedSvgData = svgData.replace(/fill="currentColor"/g, `fill="${textColour}"`);
+    
+                // Convert SVG to an image
+                const img = new Image();
+                const svgBlob = new Blob([updatedSvgData], { type: "image/svg+xml;charset=utf-8" });
+                const url = URL.createObjectURL(svgBlob);
+    
+                img.onload = () => {
+                    // maintain aspect ratio
+                    const scale = width / img.width;
+                    const height = img.height * scale;
+    
+                    canvas.width = width;
+                    canvas.height = height;
+    
+                    ctx.fillStyle = "transparent";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    URL.revokeObjectURL(url);
+    
+                    const downloadLink = document.getElementById("download-link");
+                    downloadLink.href = canvas.toDataURL("image/png");
+                    downloadLink.style.display = "inline";
+                    downloadLink.textContent = "Download PNG";
+                };
+    
+                img.src = url;
+            }).catch((err) => {
+                errorMessage.textContent = "Error: Invalid LaTeX input. Check your syntax";
+                errorMessage.style.display = "block";
+            });
+        }
+    </script>
+</body>
+</html>
